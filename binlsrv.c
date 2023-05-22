@@ -199,13 +199,16 @@ static inline void eol(FILE *fd)
         if(fread(&c, 1, sizeof(c), fd) != sizeof(c)) break;
 }
 
-int find_drv(uint16_t cvid, uint16_t cpid, DRIVER *drv)
+int find_drv(uint16_t cvid, uint16_t cpid, DRIVER *drv, char *nic_path)
 {
     uint32_t vid, pid;
     char buffer[1024];
     int found = 0;
 
-    FILE *fd = fopen(NICFILE, "r");
+    char nic_file[256];
+    snprintf(nic_file, sizeof(nic_file), "%s/%s", nic_path, NICFILE);
+
+    FILE *fd = fopen(nic_file, "r");
     if (!fd)
     {
          printf("Problems opening nic file\n");
@@ -281,6 +284,13 @@ int main(int argc, char *argv[])
     uint32_t type = 0, value = 0, res = NCR_OK;
     uint16_t vid = 0, pid = 0;
     uint32_t fromlen = 0, offset = 0, retval = 0;
+    char base_path[256];
+    char nic_path[260];
+    if (argc > 1) {
+        snprintf(base_path, sizeof(base_path), "%s", argv[1]);
+    } else {
+        snprintf(base_path, sizeof(base_path), ".");
+    }
 
 #ifdef _WIN32
     WSADATA wsaData;
@@ -348,7 +358,8 @@ int main(int argc, char *argv[])
 
         memcpy(&vid, &buffer[0x24], sizeof(vid));
         memcpy(&pid, &buffer[0x26], sizeof(pid));
-        printf("Vendor id 0x%x - Product id 0x%x\n", SWAB16(vid), SWAB16(pid));
+        snprintf(nic_path, sizeof(nic_path), "%s/%s", base_path, strrchr(&buffer[0x36], '\\') + 1);
+        printf("idVendor=0x%x, idProduct=0x%x, Path=%s, NicPath=%s\n", SWAB16(vid), SWAB16(pid), &buffer[0x36], nic_path);
 
         offset = 0;
         memset(packet, 0, sizeof(packet));
@@ -356,7 +367,7 @@ int main(int argc, char *argv[])
         memcpy(packet, &type, sizeof(type));
         offset += sizeof(type);
 
-        if (find_drv(vid, pid, &drv))
+        if (find_drv(vid, pid, &drv, nic_path))
         {
             size_t ulen = 0;
             res = SWAB32(NCR_OK);
