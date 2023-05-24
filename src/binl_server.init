@@ -1,0 +1,11 @@
+#!/bin/sh /etc/rc.common
+
+USE_PROCD=1
+
+start_service() {
+        procd_open_instance
+        procd_set_param    command /usr/bin/binl_server
+        procd_append_param command $(uci get dhcp.@dnsmasq[0].tftp_root)
+        procd_set_param    respawn
+        procd_close_instance
+}
